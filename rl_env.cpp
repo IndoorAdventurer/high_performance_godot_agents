@@ -2,6 +2,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <semaphore.h>
 
 
 using namespace std;
@@ -77,68 +78,65 @@ class RLCommunicator {
 
 int main(int argc, char const *argv[])
 {
+    sem_t *agent_sem = sem_open("/godot_python_agent_sem", 0);
+    sem_t *env_sem = sem_open("/godot_python_env_sem", 0);
+    
     // Creating shared memory data:
-    size_t length = 128;
+    size_t length = 10;
     RLCommunicator comm{"/godot_python_data", length * sizeof(int64_t)};
     int64_t *data = static_cast<int64_t *>(comm.get_data());
+    for (size_t r_idx = 0; r_idx != length; ++r_idx)
+        data[r_idx] = 0;
     
+    sem_post(agent_sem);
+    
+    // The main loop:
+    for (size_t idx = 0; idx != 50; ++idx) {
+        sem_wait(env_sem);
+        
+        // Reading data for last response:
+        for (size_t r_idx = 0; r_idx != length; ++r_idx)
+            cout << data[r_idx] << " ";
+        cout << endl;
 
-    // Setting values for the other to see
-    for (size_t idx = 0; idx != length; ++idx)
-        data[idx] = idx * idx;
-    
-    // Waiting:
-    for (size_t idx = 0; idx != 10; ++idx) {
-        sleep(1);
-        cout << "." << flush;
+        // Updating the first half of the data:
+        for (size_t r_idx = 0; r_idx != length / 2; ++r_idx)
+            data[r_idx] += 1;
+        
+        sem_post(agent_sem);
     }
-    cout << endl;
 
-    // Reading data the other put in
-    for (size_t idx = 0; idx != length; ++idx) {
-        if (idx == length / 2)
-            cout << endl;
-        cout << data[idx] << ", ";
-    }
-    cout << endl;
-
-    comm.unlink();
+    // Ending:
+    sem_wait(env_sem);
+    cout << "Signalling the end!" << endl;
+    data[0] = -1;
+    sem_post(agent_sem);
 
 
-    // const char *name = "/godot_python_data";
-    // const int length = 128;
-    // const int size = length * sizeof(int64_t);
+    // // Setting values for the other to see
+    // for (size_t idx = 0; idx != length; ++idx)
+    //     data[idx] = idx * idx;
     
-    // int fd = shm_open(name, O_CREAT | O_RDWR, 0666);
-    // if (fd == -1) {
-    //     cerr << "Error: could not create shared mem file." << endl;
-    //     return 1;
-    // }
+    // sem_post(agent_sem);
 
-    // if (ftruncate(fd, size) == -1) {
-    //     cerr << "Error: could not truncate memory." << endl;
-    //     return 1;
-    // }
-
-    // int64_t *mem = static_cast<int64_t *>(
-    //     mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
-    
-    // for (int idx = 0; idx != length; ++idx)
-    //     mem[idx] = idx * idx;
-    
-    // for (int idx = 0; idx != 10; ++idx) {
+    // // Waiting:
+    // for (size_t idx = 0; idx != 10; ++idx) {
     //     sleep(1);
     //     cout << "." << flush;
     // }
     // cout << endl;
 
-    // for (int idx = 0; idx != length; ++idx)
-    //     cout << mem[idx] << ", ";
+    // // Reading data the other put in
+    // for (size_t idx = 0; idx != length; ++idx) {
+    //     if (idx == length / 2)
+    //         cout << endl;
+    //     cout << data[idx] << ", ";
+    // }
     // cout << endl;
 
-    // cout << "Unmap returned: " << munmap(mem, size) << endl;
-    // close(fd);
-    // cout << "Unlink returned: " << shm_unlink(name) << endl;
+    comm.unlink();
+    sem_close(agent_sem);
+    sem_close(env_sem);
     
     return 0;
 }
