@@ -1,0 +1,10 @@
+# VSCode stuff:
+.vscode/
+
+# C++/Scons/Godot stuff:
+*.out
+*.os
+*.dblite
+
+# Excluding the test project:
+high-performance-godot-agents/
