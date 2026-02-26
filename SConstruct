@@ -14,6 +14,11 @@ env.Append(CPPPATH=["src/"])
 # Collects all .cpp files in the 'src' folder as compile targets.
 sources = Glob("src/*.cpp")
 
+# Add documentation.
+if env["target"] in ["editor", "template_debug"]:
+    doc_data = env.GodotCPPDocData("src/gen/doc_data.gen.cpp", source=Glob("doc_classes/*.xml"))
+    sources.append(doc_data)
+
 # The filename for the dynamic library for this GDExtension.
 # $SHLIBPREFIX is a platform specific prefix for the dynamic library ('lib' on Unix, '' on Windows).
 # $SHLIBSUFFIX is the platform specific suffix for the dynamic library (for example '.dll' on Windows).

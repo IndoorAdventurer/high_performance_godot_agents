@@ -1,6 +1,6 @@
 #include "register_types.h"
 
-#include "high_perf_master_node.h"
+#include "hpa_master_node.h"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -13,8 +13,8 @@ void initialize_high_perf_agents_module(ModuleInitializationLevel p_level) {
 		return;
 	}
 
-	GDREGISTER_RUNTIME_CLASS(HighPerfMasterNode);
-	// GDREGISTER_CLASS(GDExample);
+	// GDREGISTER_RUNTIME_CLASS(HighPerfMasterNode);
+	GDREGISTER_CLASS(HPAMasterNode);
 }
 
 void uninitialize_high_perf_agents_module(ModuleInitializationLevel p_level) {

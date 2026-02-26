@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="HPAMasterNode" inherits="Node" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+	The master node for the high performance agents plugin. Should be the one and only node in your main scene.
+	</brief_description>
+	<description>
+	</description>
+	<tutorials>
+	</tutorials>
+	<members>
+		<member name="environment_scene" type="PackedScene" setter="set_env_scene" getter="get_env_scene">
+			The scene that represents the complete simulation environment.
+		</member>
+		<member name="num_envs" type="int" setter="set_num_envs" getter="get_num_envs" default="2">
+			Number of environments to run in parallel.
+		</member>
+		<member name="obs_resolution" type="Vector2i" setter="set_obs_res" getter="get_obs_res" default="Vector2i(128, 128)">
+			The resolution of the agent's visual observation space.
+		</member>
+	</members>
+</class>
