@@ -4,6 +4,7 @@
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
+#include <functional>
 #include <semaphore.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -75,7 +76,18 @@ bool IPCInterface::initialize(const String &name, size_t shm_size) {
 
     // Open semaphores. These should already be initialized on the Python side.
     d_env_ready = sem_open(("/" + name + "_env_ready").utf8().get_data(), 0);
+    if (d_env_ready == SEM_FAILED) {
+        ERR_PRINT("sem_open (env_ready) failed: " + String(strerror(errno)));
+        return false;
+    }
+
     d_act_ready = sem_open(("/" + name + "_act_ready").utf8().get_data(), 0);
+    if (d_act_ready == SEM_FAILED) {
+        ERR_PRINT("sem_open (act_ready) failed: " + String(strerror(errno)));
+        sem_close(d_env_ready);
+        d_env_ready = SEM_FAILED;
+        return false;
+    }
 
     return _init_shared_memory();
 }
@@ -115,4 +127,14 @@ bool IPCInterface::_init_shared_memory() {
 
     d_shm_ptr = ptr;
     return true;
+}
+
+void IPCInterface::write_and_signal(std::function<void(void *, size_t)> write_fn) {
+    write_fn(d_shm_ptr, d_shm_size);
+    sem_post(d_env_ready);
+}
+
+void IPCInterface::wait_and_read(std::function<void(const void *, size_t)> read_fn) {
+    sem_wait(d_act_ready);
+    read_fn(d_shm_ptr, d_shm_size);
 }

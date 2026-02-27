@@ -1,7 +1,8 @@
 #pragma once
 #include <godot_cpp/variant/string.hpp>
-#include <semaphore.h>
 #include <cstddef>
+#include <functional>
+#include <semaphore.h>
 
 
 namespace godot
@@ -37,8 +38,50 @@ namespace godot
             /**
              * Opens the semaphores (created by Python) and creates and maps
              * the shared memory region. Returns false on failure.
+             *
+             * @param name      Shared name used for both the shared memory
+             *                  region (/name) and the semaphores
+             *                  (/name_env_ready, /name_act_ready). Must match
+             *                  the name used on the Python side.
+             * @param shm_size  Size of the shared memory region in bytes.
+             *                  The caller is responsible for ensuring this is
+             *                  large enough to hold all exchanged data.
              */
             bool initialize(const String &name, size_t shm_size);
+
+            /**
+             * Calls write_fn with a pointer to the shared memory region and
+             * its size, then signals the env_ready semaphore to notify Python
+             * that new data is available.
+             *
+             * Use this to write outgoing data (e.g. observations) into shared
+             * memory. The write_fn MUST fully populate the relevant region
+             * before returning — the semaphore is signaled immediately after,
+             * so Python may start reading the moment this method returns.
+             *
+             * Typical usage:
+             *   ipc.write_and_signal([&](void *ptr, size_t size) {
+             *       layout.write_observations(ptr, observations);
+             *   });
+             */
+            void write_and_signal(std::function<void(void *, size_t)> write_fn);
+
+            /**
+             * Blocks until the act_ready semaphore is signaled by Python, then
+             * calls read_fn with a pointer to the shared memory region and its
+             * size.
+             *
+             * Use this to read incoming data (e.g. actions) from shared memory.
+             * The read_fn MUST finish reading before returning — the memory
+             * may be overwritten in the next step as soon as the next
+             * write_and_signal call is made.
+             *
+             * Typical usage:
+             *   ipc.wait_and_read([&](const void *ptr, size_t size) {
+             *       layout.read_actions(ptr, actions);
+             *   });
+             */
+            void wait_and_read(std::function<void(const void *, size_t)> read_fn);
 
         private:
             /**
