@@ -4,6 +4,8 @@
 #include <godot_cpp/classes/sub_viewport.hpp>
 #include <godot_cpp/classes/sprite2d.hpp> // TODO: remove. Just for test now.
 #include <godot_cpp/classes/viewport_texture.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
+#include <cstring>
 
 using namespace godot;
 
@@ -11,15 +13,35 @@ HPAMasterNode::HPAMasterNode()
 :
 	d_env_scene(),
 	d_num_envs(2),
-	d_obs_res(128, 128)
+	d_obs_res(128, 128),
+	d_ipc_name("hpa")
 {}
 
 void HPAMasterNode::_ready() {
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
-	
-	_init_envs();
 
+	if (!d_ipc.initialize(d_ipc_name, 100)) {
+		ERR_PRINT("HPAMasterNode: IPC initialization failed. Quitting.");
+		get_tree()->quit();
+		return;
+	}
+
+	_init_envs();
+}
+
+void HPAMasterNode::_ipc_exchange() {
+	// TODO: maybe something like pausing the whole scene tree should also be
+	// part of this method.
+	d_ipc.write_and_signal([](void *ptr, size_t size) {
+		// TODO: write observations into shared memory
+		std::memset(ptr, 0, size);
+	});
+	d_ipc.wait_and_read([](const void *ptr, size_t size) {
+		// TODO: read actions from shared memory
+		(void)ptr;
+		(void)size;
+	});
 }
 
 void HPAMasterNode::_init_envs() {
@@ -38,7 +60,9 @@ void HPAMasterNode::_init_envs() {
 		subview->add_child(scene_inst);
 		add_child(subview);
 
-		// Create sprite to display the scene:
+		// Create sprite to display the scene for now
+		// TODO: this is just for testing. Textures should get collected on
+		// the GPU and written to RAM in a single batch.
 		Sprite2D *sprite = memnew(Sprite2D);
 		sprite->set_texture(subview->get_texture());
 		sprite->set_centered(false);
@@ -92,6 +116,14 @@ Vector2i HPAMasterNode::get_obs_res() const {
 	return d_obs_res;
 }
 
+void HPAMasterNode::set_ipc_name(const String &p_name) {
+	d_ipc_name = p_name;
+}
+
+String HPAMasterNode::get_ipc_name() const {
+	return d_ipc_name;
+}
+
 void HPAMasterNode::_bind_methods() {
 	// Environment scene property:
 	ClassDB::bind_method(
@@ -128,4 +160,15 @@ void HPAMasterNode::_bind_methods() {
 		PropertyInfo(
 			Variant::VECTOR2I, "obs_resolution"),
 			"set_obs_res", "get_obs_res");
+
+	// IPC name:
+	ClassDB::bind_method(
+		D_METHOD("set_ipc_name", "p_name"), &HPAMasterNode::set_ipc_name);
+	ClassDB::bind_method(
+		D_METHOD("get_ipc_name"), &HPAMasterNode::get_ipc_name);
+	ADD_PROPERTY(
+		PropertyInfo(Variant::STRING, "ipc_name"),
+		"set_ipc_name", "get_ipc_name");
+
+	ClassDB::bind_method(D_METHOD("_ipc_exchange"), &HPAMasterNode::_ipc_exchange);
 }

@@ -5,6 +5,10 @@
 *.out
 *.os
 *.dblite
+src/gen/
 
 # Excluding the test project:
 high-performance-godot-agents/
+
+# Brainstorming/design notes:
+design/
